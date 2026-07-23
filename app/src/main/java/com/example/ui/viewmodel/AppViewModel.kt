@@ -351,6 +351,58 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    suspend fun exportWargaToCsv(): String {
+        return try {
+            val isUserAdmin = _currentUser.value?.isAdmin == true
+            val dataToExport = if (isUserAdmin) {
+                repository.getAllWarga()
+            } else {
+                val user = _currentUser.value?.username ?: ""
+                repository.getWargaByInputter(user)
+            }
+            val sb = java.lang.StringBuilder()
+            // Excel directive for separator
+            sb.append("sep=,\n")
+            // Headers
+            sb.append("NIK,No. KK,Nama Lengkap,Tempat Lahir,Tanggal Lahir,Jenis Kelamin,Alamat,RT,RW,Agama,Status Kawin,Pekerjaan,Detail Pekerjaan,No. HP,Hubungan Keluarga,Pendidikan,Keterangan,Jumlah Anggota Keluarga,Diinput Oleh\n")
+            for (w in dataToExport) {
+                val row = listOf(
+                    escapeCsv(w.nik),
+                    escapeCsv(w.noKk),
+                    escapeCsv(w.nama),
+                    escapeCsv(w.tempatLahir),
+                    escapeCsv(w.tanggalLahir),
+                    escapeCsv(w.jenisKelamin),
+                    escapeCsv(w.alamat),
+                    escapeCsv(w.rt),
+                    escapeCsv(w.rw),
+                    escapeCsv(w.agama),
+                    escapeCsv(w.statusKawin),
+                    escapeCsv(w.pekerjaan),
+                    escapeCsv(w.pekerjaanDetail),
+                    escapeCsv(w.noHp),
+                    escapeCsv(w.hubKeluarga),
+                    escapeCsv(w.pendidikan),
+                    escapeCsv(w.keterangan),
+                    escapeCsv(w.jumlahAnggotaKeluarga.toString()),
+                    escapeCsv(w.inputtedBy)
+                )
+                sb.append(row.joinToString(",")).append("\n")
+            }
+            sb.toString()
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    private fun escapeCsv(value: String): String {
+        val clean = value.replace("\r", "").replace("\n", " ")
+        if (clean.contains(",") || clean.contains("\"")) {
+            return "\"" + clean.replace("\"", "\"\"") + "\""
+        }
+        return clean
+    }
+
     fun restoreWargaFromJson(jsonString: String) {
         viewModelScope.launch {
             _backupRestoreMessage.value = null

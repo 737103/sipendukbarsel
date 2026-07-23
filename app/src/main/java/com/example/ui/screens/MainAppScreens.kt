@@ -1762,6 +1762,24 @@ fun BackupRestoreTab(viewModel: AppViewModel, isAdmin: Boolean, isScrollable: Bo
         }
     }
 
+    val exportExcelLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    val csvString = viewModel.exportWargaToCsv()
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.write(csvString.toByteArray(charset("UTF-8")))
+                    }
+                    Toast.makeText(context, "Database berhasil diekspor ke file Excel/CSV!", Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Ekspor Excel gagal: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -1857,6 +1875,75 @@ fun BackupRestoreTab(viewModel: AppViewModel, isAdmin: Boolean, isScrollable: Bo
                     Icon(Icons.Default.ContentCopy, contentDescription = "Salin")
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Salin JSON ke Clipboard", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Card Download / Export Excel
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Download,
+                        contentDescription = "Excel download icon",
+                        tint = androidx.compose.ui.graphics.Color(0xFF2E7D32), // Forest green for Excel
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Download Data Excel", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (isAdmin) "Simpan seluruh data warga kelurahan sebagai berkas Excel/CSV." else "Simpan data warga yang Anda input sebagai berkas Excel/CSV.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        val fileName = "Data_Warga_BBS_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.csv"
+                        exportExcelLauncher.launch(fileName)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF2E7D32)),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Simpan File Excel")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Download File Excel (CSV)", fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Copy to Clipboard Alternative for Excel/CSV
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            val csvString = viewModel.exportWargaToCsv()
+                            if (csvString.isNotBlank()) {
+                                val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clipData = android.content.ClipData.newPlainText("Warga BBS CSV", csvString)
+                                clipboardManager.setPrimaryClip(clipData)
+                                Toast.makeText(context, "Data Excel/CSV disalin ke clipboard!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Tidak ada data untuk disalin", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Salin")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Salin format Excel (CSV) ke Clipboard", fontWeight = FontWeight.Bold)
                 }
             }
         }
